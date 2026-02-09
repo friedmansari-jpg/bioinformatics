@@ -1,0 +1,166 @@
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+BiocManager::install("Biostrings")
+library(Biostrings)
+BiocManager::install("msa")
+install.packages("seqinr")
+
+seq_1 <- readDNAStringSet("sequence_1.fasta")
+seq_2 <- readDNAStringSet("sequence_2.fasta")
+seq_3 <- readDNAStringSet("sequence_3.fasta")
+seq_4 <- readDNAStringSet("sequence_4.fasta")
+seq_5 <- readDNAStringSet("sequence_5.fasta")
+
+sequences <- c(seq_1, seq_2, seq_3, seq_4, seq_5)
+sequences
+
+names(sequences) <- c("sample_1","sample_2","sample_3","sample_4","sample_5")
+
+library(msa)
+alignment <- msa(sequences, method = "Muscle")
+alignment
+
+print(alignment, show = "complete")
+
+A <- as.matrix(alignment)
+gap_count <- sum(A == "-")
+gap_count
+
+alignment_length <- ncol(A)
+alignment_length
+
+letter_counts <- table(A)
+letter_counts
+
+G <- ifelse("G" %in% names(letter_counts), letter_counts["G"], 0)
+C <- ifelse("C" %in% names(letter_counts), letter_counts["C"], 0)
+
+
+total_bases <- sum(letter_counts) -
+ifelse("-" %in% names(letter_counts), letter_counts["-"], 0)
+
+GC_content <- (G + C) / total_bases * 100
+GC_content
+
+library(msa)
+library(seqinr)
+
+alignment_seqinr <- msaConvert(alignment, type = "seqinr::alignment")
+alignment_seqinr
+
+distancematrix <- dist.alignment(alignment_seqinr, "identity")
+distancematrix
+
+aligned <- as(alignment, "DNAStringSet")
+aligned
+A <- as.matrix(aligned)
+
+n <- nrow(A)
+D <- matrix(NA, n, n, dimnames = list(names(aligned), names(aligned)))
+
+for (i in 1:n) {
+  for (j in i:n) {
+    valid <- A[i,] %in% c("A","T","G","C") & A[j,] %in% c("A","T","G","C")
+    pid <- sum(A[i, valid] == A[j, valid]) / sum(valid)
+    D[i, j] <- D[j, i] <- 1 - pid
+  }
+}
+D
+
+diag(D) <- NA
+
+closest <- which(D == min(D, na.rm=TRUE), arr.ind=TRUE)[1,]
+farthest <- which(D == max(D, na.rm=TRUE), arr.ind=TRUE)[1,]
+
+c("closest", rownames(D)[closest[1]], colnames(D)[closest[2]], D[closest[1], closest[2]])
+c("farthest", rownames(D)[farthest[1]], colnames(D)[farthest[2]], D[farthest[1], farthest[2]])
+
+library(seqinr)
+
+dna <- sequences[[1]]
+dna_char <- toupper(as.character(dna))
+dna_char <- gsub("[^ATGC]", "", dna_char)
+substr(dna_char, 1, 60)                 
+nchar(dna_char)
+
+translate_frame <- function(s, frame){
+  s2 <- substr(s, frame, nchar(s))
+  s2 <- substr(s2, 1, nchar(s2) - (nchar(s2) %% 3))  
+  c2s(translate(s2c(s2)))
+}
+
+aa1 <- translate_frame(dna_char, 1)
+aa2 <- translate_frame(dna_char, 2)
+aa3 <- translate_frame(dna_char, 3)
+
+count_stops <- function(aa) sum(strsplit(aa, "")[[1]] == "*")
+
+count_stops(aa1)
+count_stops(aa2)
+count_stops(aa3)
+
+aa_seq <- aa1
+aa_seq
+
+library(seqinr)
+library(Biostrings)
+
+dna_char <- toupper(as.character(sequences[[1]]))
+dna_char <- gsub("[^ATGC]", "", dna_char)
+
+translate_frame <- function(s, frame){
+  s2 <- substr(s, frame, nchar(s))
+  s2 <- substr(s2, 1, nchar(s2) - (nchar(s2) %% 3))
+  c2s(translate(s2c(s2)))
+}
+
+aa1 <- translate_frame(dna_char, 1)
+aa2 <- translate_frame(dna_char, 2)
+aa3 <- translate_frame(dna_char, 3)
+
+rc <- as.character(reverseComplement(DNAString(dna_char)))
+aa4 <- translate_frame(rc, 1)
+aa5 <- translate_frame(rc, 2)
+aa6 <- translate_frame(rc, 3)
+
+count_stops <- function(aa) sum(strsplit(aa, "")[[1]] == "*")
+
+c(
+  f1=count_stops(aa1),
+  f2=count_stops(aa2),
+  f3=count_stops(aa3),
+  rc1=count_stops(aa4),
+  rc2=count_stops(aa5),
+  rc3=count_stops(aa6)
+)
+aa_seq <- aa5
+aa_seq
+
+dna_char <- toupper(as.character(sequences[[1]]))
+dna_char <- gsub("[^ATGC]", "", dna_char)
+
+substr(dna_char, 1, 30)
+nchar(dna_char)
+
+library(seqinr)
+
+dna_char <- toupper(as.character(sequences[[1]]))
+dna_char <- gsub("[^ATGC]", "", dna_char)
+
+start <- regexpr("ATG", dna_char)[1]
+start
+
+coding <- substr(dna_char, start, nchar(dna_char))    
+coding <- substr(coding, 1, nchar(coding) - (nchar(coding) %% 3))  
+
+aa_seq <- c2s(translate(s2c(coding)))
+aa_seq
+
+install.packages("phangorn")
+library(phangorn)
+
+alignment_phyDat <- msaConvert(Alignment, type = "phangorn::phyDat")
+write.phyDat(alignment_phyDat, file = "alignment.fasta", format = "fasta")
+
+list.files()
+
+
