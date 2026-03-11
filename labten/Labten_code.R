@@ -100,7 +100,11 @@ PlotGOAll(
 
 
 
-# Q8: Answered in doc
+# Q8:
+
+# Biological Processes: inflammatory response, nitric oxide transport, oxygen transport
+# Molecular Function: heme binding, iron ion binding, oxygen binding
+# Cellular Component: haptoglobin-hemoglobin complex, hemoglobin complex, blood microparticle
 
 
 
@@ -115,6 +119,11 @@ pathology_info
 disease_info <- Get.diseases(pathology_info)
 disease_info
 View(disease_info)
+
+# Given by the disease run, Alpha-thalassemia (A-THAL) is a genetic blood disorder cause by mutations 
+# or deletions in the alpha-globin gene, which disrupts normal hemoglobin production and reduces the blood’s 
+# ability to carry oxygen. Another one given by the pathology run was Heinz body anemia, which is a hemolytic 
+# anemia caused by unstable hemoglobin that forms inclusions inside your red blood cells.
 
 
 
