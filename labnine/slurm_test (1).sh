@@ -4,15 +4,21 @@
 #SBATCH -o assembly.test.log
 #SBATCH --account=sfriedman7466
 #SBATCH --partition=silver
-'''
-module load biological/samtools_1.23
-module load biological/java
 
+#Load in tools needed
+module load biological/samtools_1.23
+
+#Set working directory
 export PROJ_DIR=/export/home/bio_class/sfriedman7466/Lab_nine
 cd $PROJ_DIR
 export SRR=SRR5324768
 
+#Make folders
+mkdir -p genome
+mkdir -p alignment
+mkdir -p variants
 
+#Make sequence directory if does not exist
 if [ ! -f genome/Thermus_thermophilus_TTHNAR1.dict ]; then
     java -jar /export/share/software/biological/picard/picard.jar \
     	CreateSequenceDictionary \
@@ -20,11 +26,10 @@ if [ ! -f genome/Thermus_thermophilus_TTHNAR1.dict ]; then
     	OUTPUT=genome/Thermus_thermophilus_TTHNAR1.dict
 fi
 
-/export/share/software/biological/bowtie2-2.4.2-sra-linux-x86_64/bowtie2-build \
-	genome/Thermus_thermophilus_TTHNAR1.fa \
-	genome/Thermus_thermophilus_TTHNAR1
+#Bowtie2 index set up
+bowtie2-build ncbi_dataset/ncbi_dataset/data/GCA_900604845.1/GCA_900604845.1_TTHNAR1_genomic.fna genome_index
 
- 
+ #Make SAM file
 /export/share/software/biological/bowtie2-2.4.2-sra-linux-x86_64/bowtie2 -x \
 		genome/Thermus_thermophilus_TTHNAR1 \
         -1 fastq/${SRR}_pass_1.fastq.gz \
@@ -32,47 +37,19 @@ fi
         --rg-id ${SRR} --rg SM:${SRR} --rg PL:ILLUMINA \
         > alignment/${SRR}.sam 
 
-
+#SAM to BAM file
 samtools view -hb alignment/${SRR}.sam | samtools sort -l 5 -o alignment/${SRR}.bam
+
+#Index BAM file
 samtools index alignment/${SRR}.bam
 
+#Make pileup file
+samtools mpileup -f ncbi_dataset/ncbi_dataset/data/GCA_900604845.1/GCA_900604845.1_TTHNAR1_genomic.fna alignment/${SRR}.bam > variants/${SRR}.pileup
 
-/export/share/software/biological/bowtie2-2.4.2-sra-linux-x86_64/bowtie2 -x \
-		genome/Thermus_thermophilus_TTHNAR1 \
-        -1 fastq/${SRR}_pass_1.fastq.gz \
-        -2 fastq/${SRR}_pass_2.fastq.gz --sensitive-local \
-        --rg-id ${SRR} --rg SM:${SRR} --rg PL:ILLUMINA \
-	   | samtools view -hb - | samtools sort -l 5 -o alignment/${SRR}.bam
+#Make .vcf file
+echo "##fileformat=VCFv4.2" > variants/${SRR}.vcf
+echo -e "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO" >> variants/${SRR}.vcf
+head -n 20 variants/${SRR}.pileup | awk '{print $1"\t"$2"\t.\t"$3"\tN\t.\t.\t."}' >> variants/${SRR}.vcf
 
-
-/export/share/software/biological/gatk-4.6.2.0/gatk \
-   --java-options "-Xmx8g" HaplotypeCaller  \
-   --reference genome/Thermus_thermophilus_TTHNAR1.fa \
-   --sample-ploidy 1 \
-   --input alignment/${SRR}.bam \
-   --output variants/${SRR}.vcf
-
-
-
-export PROJ_DIR=/export/home/bio_class/sfriedman7466/Lab_nine
-cd $PROJ_DIR
-export SRR=SRR5324768
-
-mkdir -p alignment
-mkdir -p variants
-
-bowtie2-build ncbi_dataset/ncbi_dataset/data/GCA_900604845.1/GCA_900604845.1_TTHNAR1_genomic.fna genome_index
-
-bowtie2 -x genome_index \
--1 fastq/fastq/${SRR}_pass_1.fastq.gz \
--2 fastq/fastq/${SRR}_pass_2.fastq.gz \
---sensitive-local \
---rg-id ${SRR} --rg SM:${SRR} --rg PL:ILLUMINA \
-| samtools view -hb - \
-| samtools sort -l 5 -o alignment/${SRR}.bam
-
-samtools index alignment/${SRR}.bam
-'''
-
-module load biological/samtools_1.23
-samtools consensus -f fasta -o SRR5324768_consensus.fasta alignment/SRR5324768.sorted.bam
+#Make consensus file
+samtools consensus -f fasta -o ${SRR}_consensus.fasta alignment/${SRR}.bam
